@@ -91,3 +91,55 @@ def note_actions_kb(note_id: int):
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# Команды
+@dp.message(Command("start", "help"))
+async def start_cmd(message: types.Message):
+    await message.answer(
+        "📚 <b>Бот для заметок</b>\n\n"
+        "Основные команды:\n"
+        "/new - Новая заметка\n"
+        "/list - Мои заметки\n"
+        "/delete - Удалить заметку\n"
+        "/inspire - Цитата дня\n\n"
+        "Или используйте кнопки:",
+        reply_markup=main_kb(),
+        parse_mode="HTML"
+    )
+
+@dp.message(Command("new"))
+@dp.message(F.text == "📝 Новая заметка")
+async def new_note_cmd(message: types.Message, state: FSMContext):
+    await message.reply("Введите заголовок заметки:", parse_mode="HTML")
+    await state.set_state(NoteStates.waiting_title)
+
+@dp.message(NoteStates.waiting_title)
+async def process_title(message: types.Message, state: FSMContext):
+    await state.update_data(title=message.text)
+    await message.reply("Теперь введите текст заметки:", parse_mode="HTML")
+    await state.set_state(NoteStates.waiting_content)
+
+@dp.message(NoteStates.waiting_content)
+async def process_content(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    title = data.get('title', 'Без заголовка')
+    
+    user_id = str(message.from_user.id)
+    notes = get_user_notes(user_id)
+    note_id = get_next_id(user_id)
+    
+    notes.append({
+        'id': note_id,
+        'title': title,
+        'content': message.text,
+        'created': datetime.now().isoformat()
+    })
+    
+    save_user_notes(user_id, notes)
+    
+    await message.reply(
+        f"✅ <b>Заметка создана!</b>\nID: <code>{note_id}</code>\nЗаголовок: {title}",
+        reply_markup=main_kb(),
+        parse_mode="HTML"
+    )
+    await state.clear()
