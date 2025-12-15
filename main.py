@@ -62,3 +62,32 @@ def get_next_id(user_id: str) -> int:
     if not notes:
         return 1
     return max(note.get('id', 0) for note in notes) + 1
+
+# Клавиатуры
+def main_kb():
+    kb = [
+        [KeyboardButton(text="📝 Новая заметка"), KeyboardButton(text="📋 Мои заметки")],
+        [KeyboardButton(text="🗑️ Удалить заметку"), KeyboardButton(text="✨ Вдохновение")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
+def notes_kb(notes: List[Dict]):
+    buttons = []
+    for note in notes[:10]:
+        title = note.get('title', 'Без заголовка')[:20]
+        buttons.append([InlineKeyboardButton(
+            text=f"📝 {title}...",
+            callback_data=f"view_{note.get('id')}"
+        )])
+    buttons.append([
+        InlineKeyboardButton(text="➕ Новая", callback_data="new_note"),
+        InlineKeyboardButton(text="❌ Закрыть", callback_data="close")
+    ])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def note_actions_kb(note_id: int):
+    buttons = [
+        [InlineKeyboardButton(text="🗑️ Удалить", callback_data=f"delete_{note_id}")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
