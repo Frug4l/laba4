@@ -143,3 +143,25 @@ async def process_content(message: types.Message, state: FSMContext):
         parse_mode="HTML"
     )
     await state.clear()
+
+@dp.message(Command("list"))
+@dp.message(F.text == "📋 Мои заметки")
+async def list_cmd(message: types.Message):
+    user_id = str(message.from_user.id)
+    notes = get_user_notes(user_id)
+    
+    if not notes:
+        await message.reply("📭 У вас пока нет заметок.", reply_markup=main_kb())
+        return
+    
+    notes.sort(key=lambda x: x.get('created', ''), reverse=True)
+    
+    text = f"📋 <b>Ваши заметки</b> ({len(notes)} шт.)\n\n"
+    for i, note in enumerate(notes[:5], 1):
+        text += f"{i}. <b>{note.get('title')}</b>\n"
+        text += f"   🆔 {note.get('id')}\n\n"
+    
+    if len(notes) > 5:
+        text += f"<i>... и еще {len(notes)-5}</i>\n\n"
+    
+    await message.reply(text, parse_mode="HTML", reply_markup=notes_kb(notes))
