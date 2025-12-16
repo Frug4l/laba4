@@ -205,3 +205,56 @@ async def new_note_callback(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Введите заголовок заметки:", parse_mode="HTML")
     await state.set_state(NoteStates.waiting_title)
     await callback.answer()
+
+@dp.callback_query(F.data.startswith("delete_"))
+async def delete_note(callback: types.CallbackQuery):
+    note_id = int(callback.data.split("_")[1])
+    user_id = str(callback.from_user.id)
+    
+    notes = get_user_notes(user_id)
+    notes = [n for n in notes if n.get('id') != note_id]
+    
+    save_user_notes(user_id, notes)
+    
+    await callback.message.edit_text(f"✅ Заметка #{note_id} удалена.")
+    await callback.answer()
+
+@dp.message(Command("delete"))
+@dp.message(F.text == "🗑️ Удалить заметку")
+async def delete_cmd(message: types.Message):
+    user_id = str(message.from_user.id)
+    notes = get_user_notes(user_id)
+    
+    if not notes:
+        await message.reply("У вас нет заметок для удаления.", reply_markup=main_kb())
+        return
+    
+    text = "🗑️ <b>Удаление заметки</b>\n\nВведите ID заметки:\n\n"
+    for note in notes[:10]:
+        text += f"🆔 {note.get('id')} - {note.get('title')[:30]}...\n"
+    
+    await message.reply(text, parse_mode="HTML")
+
+@dp.message(F.text.regexp(r'^\d+$'))
+async def delete_by_id(message: types.Message):
+    note_id = int(message.text)
+    user_id = str(message.from_user.id)
+    
+    notes = get_user_notes(user_id)
+    note = next((n for n in notes if n.get('id') == note_id), None)
+    
+    if not note:
+        await message.reply(f"❌ Заметка #{note_id} не найдена.")
+        return
+    
+    buttons = [
+        [InlineKeyboardButton(text="✅ Да", callback_data=f"delete_{note_id}")],
+        [InlineKeyboardButton(text="❌ Нет", callback_data="back")]
+    ]
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    
+    await message.reply(
+        f"🗑️ Удалить заметку #{note_id}?\n<b>{note.get('title')}</b>",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
