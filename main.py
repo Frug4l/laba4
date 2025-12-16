@@ -165,3 +165,43 @@ async def list_cmd(message: types.Message):
         text += f"<i>... и еще {len(notes)-5}</i>\n\n"
     
     await message.reply(text, parse_mode="HTML", reply_markup=notes_kb(notes))
+
+@dp.callback_query(F.data.startswith("view_"))
+async def view_note(callback: types.CallbackQuery):
+    note_id = int(callback.data.split("_")[1])
+    user_id = str(callback.from_user.id)
+    
+    notes = get_user_notes(user_id)
+    note = next((n for n in notes if n.get('id') == note_id), None)
+    
+    if not note:
+        await callback.answer("Заметка не найдена", show_alert=True)
+        return
+    
+    created = datetime.fromisoformat(note.get('created')).strftime('%d.%m.%Y %H:%M')
+    text = f"📝 <b>{note.get('title')}</b>\n\n{note.get('content')}\n\n📅 {created}\n🆔 {note_id}"
+    
+    if len(text) > 4000:
+        text = text[:4000] + "..."
+    
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=note_actions_kb(note_id))
+    await callback.answer()
+
+@dp.callback_query(F.data == "back")
+async def back_to_list(callback: types.CallbackQuery):
+    user_id = str(callback.from_user.id)
+    notes = get_user_notes(user_id)
+    notes.sort(key=lambda x: x.get('created', ''), reverse=True)
+    
+    text = f"📋 <b>Ваши заметки</b> ({len(notes)} шт.)\n\n"
+    for i, note in enumerate(notes[:5], 1):
+        text += f"{i}. <b>{note.get('title')}</b>\n"
+    
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=notes_kb(notes))
+    await callback.answer()
+
+@dp.callback_query(F.data == "new_note")
+async def new_note_callback(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("Введите заголовок заметки:", parse_mode="HTML")
+    await state.set_state(NoteStates.waiting_title)
+    await callback.answer()
