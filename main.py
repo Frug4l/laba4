@@ -278,3 +278,33 @@ async def inspire_cmd(message: types.Message):
 async def close_list(callback: types.CallbackQuery):
     await callback.message.delete()
     await callback.answer()
+
+# Быстрое создание заметки
+@dp.message(F.text)
+async def quick_note(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None and len(message.text) > 2:
+        user_id = str(message.from_user.id)
+        notes = get_user_notes(user_id)
+        note_id = get_next_id(user_id)
+        
+        title = f"Заметка от {datetime.now().strftime('%d.%m.%Y')}"
+        
+        notes.append({
+            'id': note_id,
+            'title': title,
+            'content': message.text,
+            'created': datetime.now().isoformat()
+        })
+        
+        save_user_notes(user_id, notes)
+        
+        await message.reply(
+            f"✅ <b>Заметка сохранена!</b>\nID: <code>{note_id}</code>",
+            reply_markup=main_kb(),
+            parse_mode="HTML"
+        )
+
+# Запуск
+if __name__ == "__main__":
+    dp.run_polling(bot)
